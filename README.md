@@ -71,3 +71,9 @@ export default defineConfig([
   },
 ])
 ```
+
+## Vercel Persistence
+
+The incident timestamp now syncs through a Vercel function at `/api/incident` and stores its value in Vercel Blob.
+
+To make persistence work on Vercel, create a private Blob store and connect it to the project so `BLOB_STORE_ID` and `VERCEL_OIDC_TOKEN` are available to the deployment.
