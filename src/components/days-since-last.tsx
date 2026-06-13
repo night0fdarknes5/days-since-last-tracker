@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "lastIncidentTime";
 
+type PersistenceSource = "loading" | "blob" | "local" | "error";
+
 function readLocalIncidentTime() {
   const saved = window.localStorage.getItem(STORAGE_KEY);
 
@@ -28,6 +30,7 @@ const DaysSinceIncident = () => {
   const [now, setNow] = useState(() => Date.now());
   const [isSyncing, setIsSyncing] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [persistenceSource, setPersistenceSource] = useState<PersistenceSource>("loading");
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -57,10 +60,14 @@ const DaysSinceIncident = () => {
         if (typeof remoteTime === "number" && Number.isFinite(remoteTime) && isActive) {
           setLastIncidentTime(remoteTime);
           window.localStorage.setItem(STORAGE_KEY, String(remoteTime));
+          setPersistenceSource("blob");
+        } else if (isActive) {
+          setPersistenceSource("local");
         }
       } catch {
         if (isActive) {
           setSyncError("Persistence is currently using browser storage only.");
+          setPersistenceSource("error");
         }
       } finally {
         if (isActive) {
@@ -95,8 +102,11 @@ const DaysSinceIncident = () => {
       if (!response.ok) {
         throw new Error(`Unexpected response: ${response.status}`);
       }
+
+      setPersistenceSource("blob");
     } catch {
       setSyncError("Saved in this browser, but the deployment store is unavailable.");
+      setPersistenceSource("error");
     }
   };
 
@@ -114,7 +124,14 @@ const DaysSinceIncident = () => {
       </div>
 
       <div style={{ minHeight: "1.5rem", marginBottom: "1rem", color: "#666" }}>
-        {isSyncing ? "Syncing deployment storage..." : syncError ?? "Persisted in Vercel Blob when deployed."}
+        {isSyncing
+          ? "Syncing deployment storage..."
+          : syncError ??
+              (persistenceSource === "blob"
+                ? "Loaded from and saved to Vercel Blob."
+                : persistenceSource === "local"
+                  ? "Using browser storage because the remote blob is empty or unavailable."
+                  : "Waiting for remote storage.")}
       </div>
 
       <button
